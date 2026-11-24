@@ -85,7 +85,14 @@ def process(post: dict) -> str:
         if t["expires_at"] <= ts:
             raise linkedin.PublishError(linkedin.AUTH, "LinkedIn token expired. Log in again to reconnect.")
         token = crypto.decrypt(t["access_token_enc"])
-        urn = publisher.publish(token, t["linkedin_sub"], post["content"], attempt)
+        with db.connect() as c:
+            media = [dict(r) for r in c.execute("SELECT * FROM post_media WHERE post_id=? ORDER BY position, id", (pid,))]
+
+        def cache_urn(media_id: int, urn: str) -> None:  # uploaded once; a retry reuses it
+            with db.connect() as c2:
+                c2.execute("UPDATE post_media SET linkedin_urn=? WHERE id=?", (urn, media_id))
+
+        urn = publisher.publish(token, t["linkedin_sub"], post, media, attempt, cache_urn)
     except linkedin.PublishError as e:
         return _handle_error(post, e)
     except ValueError as e:  # undecryptable token

@@ -1,6 +1,8 @@
 """LinkedIn client: OAuth 2.0 authorization-code flow, userinfo, and text-post creation (versioned /rest/posts API)."""
+import json
 import re
 from datetime import timedelta
+from pathlib import Path
 from urllib.parse import urlencode
 
 import httpx
@@ -62,25 +64,87 @@ def escape_commentary(text: str) -> str:
     return _RESERVED.sub(r"\\\1", text)
 
 
-def create_post(token: str, person_sub: str, text: str) -> str:
-    """Create a public text post. Returns the post URN. Raises PublishError with a classified kind."""
-    s = get_settings()
-    body = {
-        "author": f"urn:li:person:{person_sub}",
-        "commentary": escape_commentary(text),
-        "visibility": "PUBLIC",
-        "distribution": {"feedDistribution": "MAIN_FEED", "targetEntities": [], "thirdPartyDistributionChannels": []},
-        "lifecycleState": "PUBLISHED",
-        "isReshareDisabledByAuthor": False,
-    }
-    headers = {"Authorization": f"Bearer {token}", "Linkedin-Version": s.api_version,
-               "X-Restli-Protocol-Version": "2.0.0", "Content-Type": "application/json"}
+POLL_DURATION = {1: "ONE_DAY", 3: "THREE_DAYS", 7: "SEVEN_DAYS", 14: "FOURTEEN_DAYS"}
+REST = "https://api.linkedin.com/rest"
+
+
+def _headers(token: str, as_json: bool = True) -> dict:
+    h = {"Authorization": f"Bearer {token}", "Linkedin-Version": get_settings().api_version, "X-Restli-Protocol-Version": "2.0.0"}
+    if as_json:
+        h["Content-Type"] = "application/json"
+    return h
+
+
+def _send(method: str, url: str, **kw) -> httpx.Response:
+    """One HTTP call; network failures become classified PublishErrors."""
     try:
-        r = httpx.post(POSTS_URL, json=body, headers=headers, timeout=TIMEOUT)
+        return httpx.request(method, url, timeout=TIMEOUT, **kw)
     except (httpx.ConnectError, httpx.ConnectTimeout) as e:
         raise PublishError(TEMPORARY, f"network error before sending ({type(e).__name__})") from e
-    except httpx.HTTPError as e:  # read timeout / reset mid-response: the post MAY exist (ambiguous)
+    except httpx.HTTPError as e:  # read timeout / reset mid-response: the request MAY have succeeded (ambiguous)
         raise PublishError(TEMPORARY, f"no response from LinkedIn ({type(e).__name__}); outcome unknown") from e
+
+
+def _upload(token: str, author: str, item: dict) -> str:
+    """Register + upload one image or PDF. Returns its LinkedIn URN (urn:li:image:.. / urn:li:document:..)."""
+    is_img = item["kind"] == "image"
+    path = Path(item["path"])
+    if not path.is_file():
+        raise PublishError(PERMANENT, f"attachment file is missing on the server: {item['name']}")
+    r = _send("POST", f"{REST}/{'images' if is_img else 'documents'}?action=initializeUpload", headers=_headers(token),
+              json={"initializeUploadRequest": {"owner": author}})
+    if r.status_code not in (200, 201):
+        raise classify(r.status_code, r.headers, _err_text(r))
+    v = r.json().get("value", {})
+    urn, url = v.get("image" if is_img else "document"), v.get("uploadUrl")
+    if not urn or not url:
+        raise PublishError(PERMANENT, "LinkedIn upload registration returned no URN/uploadUrl")
+    up = _send("PUT", url, headers={"Authorization": f"Bearer {token}", "Content-Type": "application/octet-stream"}, content=path.read_bytes())
+    if up.status_code not in (200, 201):
+        raise classify(up.status_code, up.headers, _err_text(up))
+    return urn
+
+
+def build_content(token: str, author: str, post: dict, media: list[dict], on_urn) -> dict | None:
+    """Translate our post row into the API's `content` block. Uploads media once; the URN is cached via on_urn(media_id, urn)."""
+    kind = post["kind"]
+    if kind in ("images", "document"):
+        for m in media:
+            if not m["linkedin_urn"]:
+                m["linkedin_urn"] = _upload(token, author, m)
+                on_urn(m["id"], m["linkedin_urn"])
+    if kind == "images":
+        imgs = [{"id": m["linkedin_urn"], **({"altText": m["alt_text"]} if m["alt_text"] else {})} for m in media]
+        return {"media": imgs[0]} if len(imgs) == 1 else {"multiImage": {"images": imgs}}
+    if kind == "document":
+        m = media[0]
+        return {"media": {"id": m["linkedin_urn"], "title": Path(m["name"]).stem[:200] or "Document"}}
+    if kind == "poll":
+        return {"poll": {"question": post["poll_question"], "options": [{"text": o} for o in json.loads(post["poll_options"])],
+                         "settings": {"duration": POLL_DURATION[post["poll_duration"]]}}}
+    if kind == "article":
+        art = {"source": post["link_url"], "title": post["link_title"] or post["link_url"]}
+        if post["link_description"]:
+            art["description"] = post["link_description"]
+        return {"article": art}
+    return None
+
+
+def create_post(token: str, person_sub: str, post: dict, media: list[dict], on_urn=lambda *_: None) -> str:
+    """Create the post (text, images, PDF, poll or link card). Returns the post URN. Raises PublishError with a classified kind."""
+    author = f"urn:li:person:{person_sub}"
+    body = {
+        "author": author,
+        "commentary": escape_commentary(post["content"]),
+        "visibility": post["visibility"],
+        "distribution": {"feedDistribution": "MAIN_FEED", "targetEntities": [], "thirdPartyDistributionChannels": []},
+        "lifecycleState": "PUBLISHED",
+        "isReshareDisabledByAuthor": bool(post["reshare_disabled"]),
+    }
+    content = build_content(token, author, post, media, on_urn)
+    if content:
+        body["content"] = content
+    r = _send("POST", POSTS_URL, json=body, headers=_headers(token))
     if r.status_code == 201:
         urn = r.headers.get("x-restli-id") or r.headers.get("x-linkedin-id")
         if not urn:

@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Post Scheduler - UI mockup (static, sample data)</title>
+<style>
+  :root {
+    --bg:#f6f7f9; --surface:#ffffff; --ink:#1f2933; --muted:#6b7684; --line:#e4e7ec; --soft:#f1f3f6;
+    --accent:#2b5c8a; --accent-ink:#ffffff; --accent-soft:#e8eff6;
+    --ok:#2f7a5b; --warn:#a46a1c; --bad:#a8423b; --idle:#7b8794; --bar:#b9c6d4; --bar2:#2b5c8a;
+  }
+  :root[data-theme="dim"] {
+    --bg:#1d2229; --surface:#252b33; --ink:#e6e9ed; --muted:#9aa5b1; --line:#343c46; --soft:#2c333c;
+    --accent:#6f9bc7; --accent-ink:#14202b; --accent-soft:#2a3745;
+    --ok:#6fb58f; --warn:#d1a15c; --bad:#d9847d; --idle:#8b97a3; --bar:#3d4855; --bar2:#6f9bc7;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:14px/1.5 "Segoe UI",system-ui,-apple-system,Roboto,sans-serif; }
+  .wrap { max-width:1040px; margin:0 auto; padding:0 20px 48px; }
+  header { background:var(--surface); border-bottom:1px solid var(--line); }
+  header .wrap { display:flex; align-items:center; justify-content:space-between; height:56px; padding-bottom:0; }
+  .brand { font-weight:600; letter-spacing:.2px; }
+  .brand small { color:var(--muted); font-weight:400; margin-left:8px; }
+  .right { display:flex; align-items:center; gap:14px; }
+  .user { display:flex; align-items:center; gap:10px; }
+  .avatar { width:30px; height:30px; border-radius:50%; background:var(--accent-soft); color:var(--accent); display:grid; place-items:center; font-weight:600; font-size:12px; }
+  .user .meta { line-height:1.2; } .user .meta span { color:var(--muted); font-size:12px; }
+  button, select, input, textarea { font:inherit; color:inherit; }
+  .btn { border:1px solid var(--line); background:var(--surface); padding:7px 14px; border-radius:6px; cursor:pointer; }
+  .btn:hover { background:var(--soft); }
+  .btn.primary { background:var(--accent); border-color:var(--accent); color:var(--accent-ink); }
+  .btn.primary:hover { filter:brightness(1.08); }
+  .btn.ghost { border-color:transparent; background:transparent; color:var(--muted); }
+  .btn.sm { padding:3px 9px; font-size:12px; }
+  h2 { font-size:12px; text-transform:uppercase; letter-spacing:.6px; color:var(--muted); font-weight:600; margin:28px 0 10px; }
+  .card { background:var(--surface); border:1px solid var(--line); border-radius:8px; }
+  /* stats */
+  .stats { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+  .stat { padding:14px 16px; } .stat .n { font-size:26px; font-weight:600; line-height:1.1; } .stat .l { color:var(--muted); font-size:12px; margin-top:4px; }
+  .insights { display:grid; grid-template-columns:2fr 1fr; gap:12px; margin-top:12px; }
+  .panel { padding:14px 16px; } .panel h3 { margin:0 0 12px; font-size:13px; font-weight:600; }
+  .chart { display:flex; align-items:flex-end; gap:6px; height:92px; }
+  .chart .col { flex:1; display:flex; flex-direction:column; justify-content:flex-end; gap:2px; height:100%; }
+  .chart .p { background:var(--bar2); border-radius:2px 2px 0 0; } .chart .f { background:var(--bad); opacity:.75; }
+  .axis { display:flex; justify-content:space-between; color:var(--muted); font-size:11px; margin-top:6px; }
+  .legend { display:flex; gap:14px; color:var(--muted); font-size:12px; margin-top:8px; }
+  .legend i { display:inline-block; width:8px; height:8px; border-radius:2px; margin-right:5px; }
+  .reasons { list-style:none; margin:0; padding:0; } .reasons li { display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--line); font-size:13px; }
+  .reasons li:last-child { border:0; } .reasons span { color:var(--muted); }
+  .note { color:var(--muted); font-size:12px; margin-top:10px; }
+  /* composer */
+  .composer { padding:16px; }
+  textarea { width:100%; min-height:110px; resize:vertical; padding:10px 12px; border:1px solid var(--line); border-radius:6px; background:var(--surface); }
+  textarea:focus, input:focus, select:focus { outline:2px solid var(--accent-soft); border-color:var(--accent); }
+  .tabs { display:flex; gap:4px; margin:12px 0 10px; border-bottom:1px solid var(--line); }
+  .tab { background:none; border:0; padding:8px 12px; color:var(--muted); cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px; }
+  .tab.on { color:var(--ink); border-bottom-color:var(--accent); font-weight:600; }
+  .pane { display:none; padding:2px 0 6px; } .pane.on { display:block; }
+  .drop { border:1px dashed var(--line); border-radius:6px; padding:18px; text-align:center; color:var(--muted); background:var(--soft); }
+  .thumbs { display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
+  .thumb { width:64px; height:64px; border-radius:6px; background:var(--soft); border:1px solid var(--line); position:relative; display:grid; place-items:center; color:var(--muted); font-size:11px; }
+  .thumb b { position:absolute; top:-6px; right:-6px; width:16px; height:16px; border-radius:50%; background:var(--ink); color:var(--surface); font-size:10px; display:grid; place-items:center; font-weight:400; }
+  .field { display:flex; flex-direction:column; gap:4px; } .field label { font-size:12px; color:var(--muted); }
+  .field input, .field select { padding:7px 10px; border:1px solid var(--line); border-radius:6px; background:var(--surface); }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .foot { display:flex; align-items:flex-end; justify-content:space-between; gap:12px; margin-top:14px; padding-top:14px; border-top:1px solid var(--line); flex-wrap:wrap; }
+  .foot .opts { display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap; }
+  .foot .acts { display:flex; gap:8px; }
+  /* list */
+  table { width:100%; border-collapse:collapse; }
+  th { text-align:left; font-weight:500; font-size:12px; color:var(--muted); padding:10px 16px; border-bottom:1px solid var(--line); }
+  td { padding:12px 16px; border-bottom:1px solid var(--line); vertical-align:top; }
+  tr:last-child td { border-bottom:0; }
+  .st { display:inline-flex; align-items:center; gap:7px; white-space:nowrap; }
+  .st i { width:8px; height:8px; border-radius:50%; background:var(--idle); }
+  .st.published i { background:var(--ok); } .st.processing i { background:var(--warn); } .st.failed i { background:var(--bad); }
+  .txt { max-width:360px; } .txt .chip { display:inline-block; margin-top:4px; margin-right:4px; font-size:11px; color:var(--muted); background:var(--soft); border:1px solid var(--line); border-radius:10px; padding:1px 8px; }
+  .sub { color:var(--muted); font-size:12px; }
+  .err { color:var(--bad); font-size:12px; }
+  .log { background:var(--soft); font:12px/1.6 Consolas,ui-monospace,monospace; padding:10px 14px; color:var(--muted); }
+  .log div b { color:var(--ink); font-weight:600; }
+  @media (max-width:760px) { .stats { grid-template-columns:repeat(2,1fr); } .insights { grid-template-columns:1fr; } .grid2 { grid-template-columns:1fr; } th:nth-child(3), td:nth-child(3) { display:none; } }
+</style>
+</head>
+<body>
+<header><div class="wrap">
+  <div class="brand">Post Scheduler <small>LinkedIn</small></div>
+  <div class="right">
+    <button class="btn sm ghost" id="themeBtn" title="Switch theme">Theme: Light</button>
+    <div class="user"><div class="avatar">KS</div><div class="meta">Krishnendu Saha<br><span>Connected · token valid 60 days</span></div></div>
+    <button class="btn sm">Log out</button>
+  </div>
+</div></header>
+
+<div class="wrap">
+  <h2>Overview</h2>
+  <div class="stats">
+    <div class="card stat"><div class="n">2</div><div class="l">Scheduled</div></div>
+    <div class="card stat"><div class="n">14</div><div class="l">Published</div></div>
+    <div class="card stat"><div class="n">1</div><div class="l">Failed</div></div>
+    <div class="card stat"><div class="n">93%</div><div class="l">Success rate</div></div>
+  </div>
+  <div class="insights">
+    <div class="card panel">
+      <h3>Last 14 days</h3>
+      <div class="chart" id="chart"></div>
+      <div class="axis"><span>10 Nov</span><span>24 Nov</span></div>
+      <div class="legend"><span><i style="background:var(--bar2)"></i>Published</span><span><i style="background:var(--bad);opacity:.75"></i>Failed</span></div>
+    </div>
+    <div class="card panel">
+      <h3>Reliability</h3>
+      <ul class="reasons">
+        <li>First-try success <span>86%</span></li>
+        <li>Avg. attempts per post <span>1.2</span></li>
+        <li>Avg. publish delay <span>3 s</span></li>
+        <li>Top failure <span>Token expired (1)</span></li>
+      </ul>
+    </div>
+  </div>
+  <div class="note">Engagement metrics (impressions, reactions, comments) are not available: LinkedIn restricts them to approved partner apps.</div>
+
+  <h2>New post</h2>
+  <div class="card composer">
+    <textarea placeholder="What do you want to share?">Excited to share that our team has shipped the new reporting module. #product #engineering</textarea>
+    <div class="tabs" id="tabs">
+      <button class="tab on" data-p="p-img">Images</button>
+      <button class="tab" data-p="p-doc">Document</button>
+      <button class="tab" data-p="p-poll">Poll</button>
+      <button class="tab" data-p="p-link">Link</button>
+      <button class="tab" data-p="p-none">Text only</button>
+    </div>
+    <div class="pane on" id="p-img">
+      <div class="drop">Drop up to 9 images here or <u>browse</u> · JPG, PNG, GIF · max 8 MB each</div>
+      <div class="thumbs"><div class="thumb">img 1<b>×</b></div><div class="thumb">img 2<b>×</b></div><div class="thumb">img 3<b>×</b></div></div>
+      <div class="note">Alt text per image is optional and improves accessibility.</div>
+    </div>
+    <div class="pane" id="p-doc"><div class="drop">Drop a PDF here or <u>browse</u> · max 20 MB</div></div>
+    <div class="pane" id="p-poll">
+      <div class="field"><label>Question (max 140)</label><input value="Which topic should we cover next?"></div>
+      <div class="grid2" style="margin-top:10px">
+        <div class="field"><label>Option 1</label><input value="Automation"></div><div class="field"><label>Option 2</label><input value="Analytics"></div>
+        <div class="field"><label>Option 3 (optional)</label><input></div><div class="field"><label>Option 4 (optional)</label><input></div>
+      </div>
+      <div class="field" style="margin-top:10px;max-width:200px"><label>Poll duration</label><select><option>3 days</option><option>1 day</option><option>7 days</option><option>14 days</option></select></div>
+    </div>
+    <div class="pane" id="p-link">
+      <div class="grid2"><div class="field"><label>URL</label><input placeholder="https://"></div><div class="field"><label>Title</label><input></div></div>
+      <div class="field" style="margin-top:10px"><label>Description (optional)</label><input></div>
+    </div>
+    <div class="pane" id="p-none"><div class="note">Publishes the text above with no attachment.</div></div>
+
+    <div class="foot">
+      <div class="opts">
+        <div class="field"><label>Visibility</label><select><option>Anyone</option><option>Connections only</option></select></div>
+        <div class="field"><label>Publish at (Asia/Calcutta)</label><input type="datetime-local" value="2026-11-24T18:30"></div>
+      </div>
+      <div class="acts"><button class="btn">Post now</button><button class="btn primary">Schedule</button></div>
+    </div>
+  </div>
+
+  <h2>Posts</h2>
+  <div class="card" style="overflow:hidden">
+    <table>
+      <thead><tr><th>Status</th><th>Post</th><th>Scheduled</th><th>Attempts</th><th></th></tr></thead>
+      <tbody>
+        <tr><td><span class="st scheduled"><i></i>Scheduled</span></td>
+            <td class="txt">Excited to share that our team has shipped the new reporting module.<br><span class="chip">3 images</span><span class="chip">Anyone</span></td>
+            <td>24 Nov, 18:30</td><td>0 / 5</td><td><button class="btn sm">Cancel</button></td></tr>
+        <tr><td><span class="st processing"><i></i>Retrying</span><div class="sub">next try 17:52</div></td>
+            <td class="txt">Quarterly roadmap overview.<br><span class="chip">PDF</span></td>
+            <td>24 Nov, 17:47</td><td>2 / 5</td><td><button class="btn sm" onclick="document.getElementById('lg').hidden=!document.getElementById('lg').hidden">Log</button></td></tr>
+        <tr id="lg"><td colspan="5" style="padding:0"><div class="log">
+          <div>17:47:02 <b>claimed</b> attempt 1/5</div>
+          <div>17:47:03 <b>retry_scheduled</b> LinkedIn 503 · retry in 31 s</div>
+          <div>17:47:36 <b>claimed</b> attempt 2/5</div>
+          <div>17:47:37 <b>retry_scheduled</b> LinkedIn 503 · retry in 2 m 40 s</div></div></td></tr>
+        <tr><td><span class="st published"><i></i>Published</span></td>
+            <td class="txt">Which topic should we cover next?<br><span class="chip">Poll · 3 days</span></td>
+            <td>24 Nov, 17:44</td><td>1 / 5</td><td><a class="btn sm" href="#">View on LinkedIn</a></td></tr>
+        <tr><td><span class="st failed"><i></i>Failed</span></td>
+            <td class="txt">Hello World !<br><span class="err">LinkedIn token expired. Log in again to reconnect.</span></td>
+            <td>24 Nov, 17:39</td><td>1 / 5</td><td><button class="btn sm">Retry</button></td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+  const chart = document.getElementById('chart');
+  [[2,0],[1,0],[0,0],[3,0],[2,1],[1,0],[0,0],[0,0],[2,0],[1,0],[3,0],[2,0],[1,0],[2,0]].forEach(([p,f]) => {
+    const c = document.createElement('div'); c.className = 'col';
+    if (f) { const x = document.createElement('div'); x.className='f'; x.style.height = f*22+'%'; c.append(x); }
+    if (p) { const x = document.createElement('div'); x.className='p'; x.style.height = p*22+'%'; c.append(x); }
+    if (!p && !f) { const x = document.createElement('div'); x.style.cssText='height:3px;background:var(--bar)'; c.append(x); }
+    chart.append(c);
+  });
+  document.getElementById('tabs').addEventListener('click', e => {
+    const t = e.target.closest('.tab'); if (!t) return;
+    document.querySelectorAll('.tab').forEach(x => x.classList.toggle('on', x === t));
+    document.querySelectorAll('.pane').forEach(p => p.classList.toggle('on', p.id === t.dataset.p));
+  });
+  const btn = document.getElementById('themeBtn');
+  btn.onclick = () => {
+    const dim = document.documentElement.dataset.theme !== 'dim';
+    document.documentElement.dataset.theme = dim ? 'dim' : 'light';
+    btn.textContent = 'Theme: ' + (dim ? 'Dim' : 'Light');
+  };
+</script>
+</body>
+</html>

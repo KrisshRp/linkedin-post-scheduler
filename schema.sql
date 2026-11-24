@@ -32,6 +32,11 @@ CREATE TABLE IF NOT EXISTS posts (
   next_attempt_at   TEXT NOT NULL,            -- = scheduled_at at first, pushed out on retry
   locked_at         TEXT,                     -- set when the worker claims the row
   linkedin_post_urn TEXT UNIQUE,              -- set in the same commit that marks it published
+  kind              TEXT NOT NULL DEFAULT 'text',   -- text | images | document | poll | article
+  visibility        TEXT NOT NULL DEFAULT 'PUBLIC', -- PUBLIC | CONNECTIONS
+  reshare_disabled  INTEGER NOT NULL DEFAULT 0,
+  link_url          TEXT, link_title TEXT, link_description TEXT,   -- article card
+  poll_question     TEXT, poll_options TEXT, poll_duration INTEGER, -- poll: JSON list of options, duration in days
   last_error        TEXT,
   published_at      TEXT,
   created_at        TEXT NOT NULL,
@@ -49,3 +54,19 @@ CREATE TABLE IF NOT EXISTS post_events (        -- per-post audit trail shown in
   detail  TEXT NOT NULL DEFAULT ''              -- sanitised; never tokens
 );
 CREATE INDEX IF NOT EXISTS idx_events_post ON post_events(post_id, id);
+
+CREATE TABLE IF NOT EXISTS post_media (         -- images / PDF attached to a post
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  post_id     INTEGER REFERENCES posts(id) ON DELETE CASCADE,  -- NULL until the post is created (orphans cleaned after 24h)
+  kind        TEXT NOT NULL CHECK (kind IN ('image','document')),
+  name        TEXT NOT NULL,
+  mime        TEXT NOT NULL,
+  size        INTEGER NOT NULL,
+  path        TEXT NOT NULL,                      -- file under data/media/
+  alt_text    TEXT NOT NULL DEFAULT '',
+  position    INTEGER NOT NULL DEFAULT 0,
+  linkedin_urn TEXT,                              -- cached after upload so retries never re-upload
+  created_at  TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_media_post ON post_media(post_id);

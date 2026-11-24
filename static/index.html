@@ -3,49 +3,118 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>LinkedIn Post Scheduler</title>
+  <title>Post Scheduler</title>
+  <script>try { document.documentElement.dataset.theme = localStorage.getItem("theme") || "light"; } catch (e) {}</script>
   <link rel="stylesheet" href="/static/app.css">
 </head>
 <body>
-  <div id="banner" class="banner" hidden></div>
+  <div id="banner" class="banner" hidden>Dry-run mode: nothing is published to LinkedIn.</div>
 
-  <section id="login" class="card center" hidden>
-    <h1>LinkedIn Post Scheduler</h1>
-    <p class="muted">Schedule a post. A background worker publishes it at the chosen time, with retries and duplicate protection.</p>
+  <section id="login" class="card login" hidden>
+    <h1>Post Scheduler</h1>
+    <p>Schedule LinkedIn posts. Published automatically, with retries and duplicate protection.</p>
     <a class="btn primary" href="/auth/login">Sign in with LinkedIn</a>
     <a id="devLogin" class="btn" href="/auth/dev-login" hidden>Dev login (dry-run only)</a>
   </section>
 
-  <main id="app" hidden>
-    <header class="top">
-      <div class="who"><img id="avatar" alt="" hidden><div><strong id="name"></strong><div id="token" class="muted small"></div></div></div>
-      <button id="logout" class="btn">Log out</button>
-    </header>
+  <div id="app" hidden>
+    <header><div class="wrap">
+      <div class="brand">Post Scheduler <small>LinkedIn</small></div>
+      <div class="right">
+        <button class="btn sm ghost" id="themeBtn" type="button" title="Switch theme">Theme: Light</button>
+        <div class="user"><div class="avatar" id="avatar"></div><div class="meta"><span id="name" style="color:inherit;font-size:inherit"></span><br><span id="token"></span></div></div>
+        <button class="btn sm" id="logout" type="button">Log out</button>
+      </div>
+    </div></header>
 
-    <section class="card">
-      <h2>Schedule a post</h2>
-      <form id="form">
-        <textarea id="content" maxlength="3000" rows="5" placeholder="What do you want to share?" required></textarea>
-        <div class="row">
-          <span id="count" class="muted small">0 / 3000</span>
-          <label class="small">Publish at (<span id="tz"></span>)
-            <input id="when" type="datetime-local" required>
-          </label>
-          <span class="btns"><button id="postNow" class="btn" type="button">Post now</button><button class="btn primary" type="submit">Schedule</button></span>
+    <div class="wrap">
+      <h2>Overview</h2>
+      <div class="stats">
+        <div class="card stat"><div class="n" id="sScheduled">-</div><div class="l">Scheduled</div></div>
+        <div class="card stat"><div class="n" id="sPublished">-</div><div class="l">Published</div></div>
+        <div class="card stat"><div class="n" id="sFailed">-</div><div class="l">Failed</div></div>
+        <div class="card stat"><div class="n" id="sRate">-</div><div class="l">Success rate</div></div>
+      </div>
+      <div class="insights">
+        <div class="card panel">
+          <h3>Last 14 days</h3>
+          <div class="chart" id="chart"></div>
+          <div class="axis"><span id="axisFrom"></span><span id="axisTo"></span></div>
+          <div class="legend"><span><i style="background:var(--bar2)"></i>Published</span><span><i style="background:var(--bad);opacity:.75"></i>Failed</span></div>
         </div>
-        <div id="formMsg" class="small" role="status"></div>
-      </form>
-    </section>
+        <div class="card panel">
+          <h3>Reliability</h3>
+          <ul class="reasons" id="reliab"></ul>
+        </div>
+      </div>
+      <div class="note">Engagement metrics (impressions, reactions, comments) are not shown: LinkedIn restricts them to approved partner apps.</div>
 
-    <section class="card">
-      <h2>Your posts <span class="muted small">(auto-refreshes every 5 s)</span></h2>
-      <table>
-        <thead><tr><th>Status</th><th>Content</th><th>Scheduled</th><th>Attempts</th><th>Details</th><th></th></tr></thead>
-        <tbody id="rows"></tbody>
-      </table>
-      <p id="empty" class="muted" hidden>No posts yet.</p>
-    </section>
-  </main>
+      <h2>New post</h2>
+      <div class="card composer">
+        <textarea id="content" maxlength="3000" placeholder="What do you want to share?"></textarea>
+        <div id="count">0 / 3000</div>
+        <div class="tabs" id="tabs">
+          <button class="tab on" type="button" data-p="p-img">Images</button>
+          <button class="tab" type="button" data-p="p-doc">Document</button>
+          <button class="tab" type="button" data-p="p-poll">Poll</button>
+          <button class="tab" type="button" data-p="p-link">Link</button>
+          <button class="tab" type="button" data-p="p-none">Text only</button>
+        </div>
+        <div class="pane on" id="p-img">
+          <div class="drop" id="dropImg">Drop up to 9 images here or <u>browse</u> · JPG, PNG, GIF · max 8 MB each</div>
+          <input id="fileImg" type="file" accept="image/png,image/jpeg,image/gif" multiple hidden>
+          <div class="files" id="imgList"></div>
+          <div class="note">Alt text per image is optional and improves accessibility.</div>
+        </div>
+        <div class="pane" id="p-doc">
+          <div class="drop" id="dropDoc">Drop a PDF here or <u>browse</u> · max 20 MB</div>
+          <input id="fileDoc" type="file" accept="application/pdf" hidden>
+          <div class="files" id="docList"></div>
+        </div>
+        <div class="pane" id="p-poll">
+          <div class="field"><label>Question (max 140)</label><input id="pollQ" maxlength="140"></div>
+          <div class="grid2" style="margin-top:10px">
+            <div class="field"><label>Option 1</label><input class="pollOpt" maxlength="30"></div>
+            <div class="field"><label>Option 2</label><input class="pollOpt" maxlength="30"></div>
+            <div class="field"><label>Option 3 (optional)</label><input class="pollOpt" maxlength="30"></div>
+            <div class="field"><label>Option 4 (optional)</label><input class="pollOpt" maxlength="30"></div>
+          </div>
+          <div class="field" style="margin-top:10px;max-width:200px"><label>Poll duration</label>
+            <select id="pollDays"><option value="3">3 days</option><option value="1">1 day</option><option value="7">7 days</option><option value="14">14 days</option></select></div>
+        </div>
+        <div class="pane" id="p-link">
+          <div class="grid2">
+            <div class="field"><label>URL</label><input id="linkUrl" placeholder="https://"></div>
+            <div class="field"><label>Title</label><input id="linkTitle" maxlength="200"></div>
+          </div>
+          <div class="field" style="margin-top:10px"><label>Description (optional)</label><input id="linkDesc" maxlength="400"></div>
+        </div>
+        <div class="pane" id="p-none"><div class="note">Publishes the text above with no attachment.</div></div>
+
+        <div class="foot">
+          <div class="opts">
+            <div class="field"><label>Visibility</label>
+              <select id="visibility"><option value="PUBLIC">Anyone</option><option value="CONNECTIONS">Connections only</option></select></div>
+            <div class="field"><label>Publish at (<span id="tz"></span>)</label><input id="when" type="datetime-local"></div>
+          </div>
+          <div class="acts">
+            <button class="btn" id="postNow" type="button">Post now</button>
+            <button class="btn primary" id="schedule" type="button">Schedule</button>
+          </div>
+        </div>
+        <div id="formMsg" role="status"></div>
+      </div>
+
+      <h2>Posts</h2>
+      <div class="card" style="overflow:hidden">
+        <table>
+          <thead><tr><th>Status</th><th>Post</th><th>Scheduled</th><th>Attempts</th><th></th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+        <div id="empty" class="empty" hidden>No posts yet.</div>
+      </div>
+    </div>
+  </div>
   <script src="/static/app.js"></script>
 </body>
 </html>

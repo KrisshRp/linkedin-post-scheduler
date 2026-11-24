@@ -19,6 +19,8 @@ Small working app that schedules and publishes a LinkedIn post. Log in with Link
 | Logging | console + `logs/app.log` (secrets redacted) + per-post event log in the UI |
 | Statuses | `scheduled`, `processing`, `published`, `failed` |
 
+Beyond the assignment: **Post now** button, up to 9 images (with alt text), a PDF document, a poll, or a link card per post, visibility (Anyone / Connections), and a dashboard with counts, a 14-day chart and reliability stats. Video, location tagging and @mentions are not offered: the API has no location field, mentions need member URNs, and video needs chunked upload plus processing.
+
 ## Setup
 
 Needs Python 3.11+.
@@ -81,12 +83,13 @@ or double-click `run.bat`. Open http://localhost:8000.
 - **No refresh tokens:** self-serve LinkedIn apps get ~60-day access tokens and no refresh token. On expiry the post fails with "Log in again to reconnect".
 - **Single process:** the worker runs inside the web process (SQLite). Running several app processes is safe for claiming, but is not the target setup.
 - `LINKEDIN_API_VERSION` (header `Linkedin-Version`) must be a currently supported `YYYYMM` (LinkedIn retires versions after ~12 months; a `426 ... not active` error means it is too old). Default `202610`.
-- Text posts only (no images/links preview/articles).
+- **No LinkedIn engagement stats:** impressions, reactions and comments need the restricted `r_member_social` scope (the endpoints return 403 for self-serve apps), so the dashboard shows our own delivery statistics instead.
+- **Attachments:** one type per post (images, PDF, poll or link). Image/PDF uploads are saved under `data/media/`, sent to LinkedIn at publish time, and the returned URN is cached so retries never re-upload. Unused uploads are deleted after 24 h. The link card has no thumbnail.
 
 ## Layout
 
 ```
-app/        main, config, db, crypto, logs, linkedin (OAuth + API), publisher, worker, routes_auth, routes_posts
+app/        main, config, db, crypto, logs, linkedin (OAuth + API), publisher, worker, routes_auth, routes_posts, routes_media, routes_stats
 static/     index.html, app.js, app.css
 tests/      pytest suite (offline)
 docs/       architecture.md (diagrams)

@@ -5,6 +5,11 @@ from datetime import datetime, timezone
 
 from .config import ROOT, get_settings
 
+NEW_POST_COLUMNS = {
+    "kind": "TEXT NOT NULL DEFAULT 'text'", "visibility": "TEXT NOT NULL DEFAULT 'PUBLIC'",
+    "reshare_disabled": "INTEGER NOT NULL DEFAULT 0", "link_url": "TEXT", "link_title": "TEXT", "link_description": "TEXT",
+    "poll_question": "TEXT", "poll_options": "TEXT", "poll_duration": "INTEGER",
+}
 TS_FMT = "%Y-%m-%dT%H:%M:%SZ"
 
 
@@ -41,6 +46,10 @@ def init_schema() -> None:
     with connect() as c:
         c.execute("PRAGMA journal_mode = WAL")
         c.executescript((ROOT / "schema.sql").read_text(encoding="utf-8"))
+        have = {r["name"] for r in c.execute("PRAGMA table_info(posts)")}
+        for col, ddl in NEW_POST_COLUMNS.items():  # older databases: add columns introduced later
+            if col not in have:
+                c.execute(f"ALTER TABLE posts ADD COLUMN {col} {ddl}")
 
 
 def add_event(conn, post_id: int, level: str, event: str, detail: str = "") -> None:

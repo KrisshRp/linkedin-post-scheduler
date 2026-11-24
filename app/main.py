@@ -13,7 +13,9 @@ from . import db, worker
 from .config import ROOT, get_settings
 from .logs import setup_logging
 from .routes_auth import router as auth_router
+from .routes_media import cleanup_orphans, router as media_router
 from .routes_posts import router as posts_router
+from .routes_stats import router as stats_router
 
 log = logging.getLogger("app")
 
@@ -23,6 +25,7 @@ async def lifespan(app: FastAPI):
     s = get_settings()  # fails fast on missing config
     setup_logging()
     db.init_schema()
+    cleanup_orphans()
     stop = threading.Event()
     thread = worker.start(stop)
     log.info("started mode=%s db=%s", s.publish_mode, s.db_path)
@@ -38,6 +41,8 @@ app.add_middleware(SessionMiddleware, secret_key=_s.session_secret, https_only=_
                    same_site="lax", max_age=7 * 24 * 3600, session_cookie="li_session")
 app.include_router(auth_router)
 app.include_router(posts_router)
+app.include_router(media_router)
+app.include_router(stats_router)
 app.mount("/static", StaticFiles(directory=ROOT / "static"), name="static")
 
 

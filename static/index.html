@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LinkedIn Post Scheduler</title>
+  <link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+  <div id="banner" class="banner" hidden></div>
+
+  <section id="login" class="card center" hidden>
+    <h1>LinkedIn Post Scheduler</h1>
+    <p class="muted">Schedule a post. A background worker publishes it at the chosen time, with retries and duplicate protection.</p>
+    <a class="btn primary" href="/auth/login">Sign in with LinkedIn</a>
+    <a id="devLogin" class="btn" href="/auth/dev-login" hidden>Dev login (dry-run only)</a>
+  </section>
+
+  <main id="app" hidden>
+    <header class="top">
+      <div class="who"><img id="avatar" alt="" hidden><div><strong id="name"></strong><div id="token" class="muted small"></div></div></div>
+      <button id="logout" class="btn">Log out</button>
+    </header>
+
+    <section class="card">
+      <h2>Schedule a post</h2>
+      <form id="form">
+        <textarea id="content" maxlength="3000" rows="5" placeholder="What do you want to share?" required></textarea>
+        <div class="row">
+          <span id="count" class="muted small">0 / 3000</span>
+          <label class="small">Publish at (<span id="tz"></span>)
+            <input id="when" type="datetime-local" required>
+          </label>
+          <button class="btn primary" type="submit">Schedule</button>
+        </div>
+        <div id="formMsg" class="small" role="status"></div>
+      </form>
+    </section>
+
+    <section class="card">
+      <h2>Your posts <span class="muted small">(auto-refreshes every 5 s)</span></h2>
+      <table>
+        <thead><tr><th>Status</th><th>Content</th><th>Scheduled</th><th>Attempts</th><th>Details</th><th></th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+      <p id="empty" class="muted" hidden>No posts yet.</p>
+    </section>
+  </main>
+  <script src="/static/app.js"></script>
+</body>
+</html>

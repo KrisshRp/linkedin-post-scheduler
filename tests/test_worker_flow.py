@@ -123,3 +123,8 @@ def test_classify_http_errors():
 
 def test_commentary_escaping_keeps_hashtags():
     assert linkedin.escape_commentary("a (b) #tag_x") == r"a \(b\) #tag\_x"
+
+
+def test_426_is_permanent_with_version_hint():
+    e = linkedin.classify(426, {}, "Requested version 20251101 is not active")
+    assert e.kind == linkedin.PERMANENT and "LINKEDIN_API_VERSION" in e.message

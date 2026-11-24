@@ -101,6 +101,18 @@ $("form").addEventListener("submit", async (ev) => {
     await refresh();
   } catch (e) { msg(e.message, true); }
 });
+$("postNow").addEventListener("click", async () => {
+  const content = $("content").value.trim();
+  if (!content) { msg("Write something first.", true); return; }
+  if (!confirm("Publish this to your LinkedIn profile right now?")) return;
+  try {
+    await api("/api/posts", { method: "POST", body: JSON.stringify({ content, post_now: true }) });
+    $("content").value = ""; $("count").textContent = "0 / 3000";
+    msg("Publishing now... watch the status below.", false);
+    await refresh();
+    setTimeout(() => refresh().catch(() => {}), 1500);
+  } catch (e) { msg(e.message, true); }
+});
 $("logout").addEventListener("click", async () => { await fetch("/auth/logout", { method: "POST" }); showLogin(); });
 
 init();

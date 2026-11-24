@@ -96,6 +96,8 @@ def classify(status: int, headers, message: str) -> PublishError:
         return PublishError(TEMPORARY, msg, float(ra) if ra and ra.isdigit() else None)
     if status >= 500:
         return PublishError(TEMPORARY, msg)
+    if status == 426:
+        return PublishError(PERMANENT, f"{msg}. Set LINKEDIN_API_VERSION in .env to a recent YYYYMM.")
     if status == 401:
         return PublishError(AUTH, "LinkedIn rejected the token (expired or revoked). Log in again to reconnect.")
     return PublishError(PERMANENT, msg)  # 400, 403, 404, 409, 422 ...

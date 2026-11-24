@@ -14,6 +14,7 @@ from .config import get_settings
 log = logging.getLogger("worker")
 STUCK_AFTER_SECONDS = 600
 state = {"last_tick": 0.0, "thread": None}
+wake = threading.Event()  # set by the API so "Post now" is picked up immediately instead of at the next poll
 
 
 def backoff_seconds(attempt: int, retry_after: float | None = None) -> float:
@@ -133,7 +134,9 @@ def run(stop: threading.Event) -> None:
             tick()
         except Exception:  # never let the worker die
             log.exception("worker tick error")
-        stop.wait(get_settings().poll_seconds)
+        if not stop.is_set():
+            wake.wait(get_settings().poll_seconds)
+            wake.clear()
     log.info("worker stopped")
 
 

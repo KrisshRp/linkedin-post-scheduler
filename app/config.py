@@ -66,7 +66,7 @@ def get_settings() -> Settings:
         client_secret=_need("LINKEDIN_CLIENT_SECRET", "Get it from the LinkedIn app's Auth tab.") if live else os.getenv("LINKEDIN_CLIENT_SECRET", ""),
         redirect_uri=os.getenv("LINKEDIN_REDIRECT_URI", f"{base}/auth/callback"),
         scopes=os.getenv("LINKEDIN_SCOPES", "openid profile email w_member_social"),
-        api_version=os.getenv("LINKEDIN_API_VERSION", "202511"),
+        api_version=os.getenv("LINKEDIN_API_VERSION", "202610"),
         token_key=_need("TOKEN_ENCRYPTION_KEY", 'Generate: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"'),
         session_secret=_need("SESSION_SECRET", 'Generate: python -c "import secrets; print(secrets.token_urlsafe(48))"'),
         cookie_secure=os.getenv("COOKIE_SECURE", "false").lower() == "true",

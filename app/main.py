@@ -28,6 +28,7 @@ async def lifespan(app: FastAPI):
     log.info("started mode=%s db=%s", s.publish_mode, s.db_path)
     yield
     stop.set()
+    worker.wake.set()
     thread.join(timeout=10)
 
 

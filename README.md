@@ -80,7 +80,7 @@ or double-click `run.bat`. Open http://localhost:8000.
 - **Ambiguous timeouts:** LinkedIn offers no idempotency key. If LinkedIn creates the post but the response is lost (read timeout), a retry could create a duplicate. Verifying would need the restricted `r_member_social` scope. Connection errors that happen before the request is sent are safe to retry.
 - **No refresh tokens:** self-serve LinkedIn apps get ~60-day access tokens and no refresh token. On expiry the post fails with "Log in again to reconnect".
 - **Single process:** the worker runs inside the web process (SQLite). Running several app processes is safe for claiming, but is not the target setup.
-- `LINKEDIN_API_VERSION` (header `Linkedin-Version`) must be a currently supported `YYYYMM`; change it in `.env` if LinkedIn reports it inactive.
+- `LINKEDIN_API_VERSION` (header `Linkedin-Version`) must be a currently supported `YYYYMM` (LinkedIn retires versions after ~12 months; a `426 ... not active` error means it is too old). Default `202610`.
 - Text posts only (no images/links preview/articles).
 
 ## Layout

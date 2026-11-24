@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from . import db
+from . import db, worker
 from .config import get_settings
 from .routes_auth import current_user
 
@@ -18,7 +18,8 @@ PAST_GRACE = timedelta(seconds=30)
 
 class NewPost(BaseModel):
     content: str
-    scheduled_at: str  # ISO-8601 with timezone (browser sends UTC "Z")
+    scheduled_at: str = ""  # ISO-8601 with timezone (browser sends UTC "Z"); ignored when post_now
+    post_now: bool = False  # publish immediately (worker is woken)
 
 
 def _hash(content: str) -> str:
@@ -37,15 +38,18 @@ def create(body: NewPost, user: dict = Depends(current_user)):
     content = body.content.strip()
     if not 1 <= len(content) <= 3000:
         raise HTTPException(422, "Content must be 1-3000 characters")
-    try:
-        when = datetime.fromisoformat(body.scheduled_at.replace("Z", "+00:00"))
-    except ValueError:
-        raise HTTPException(422, "scheduled_at must be an ISO-8601 date-time")
-    if when.tzinfo is None:
-        when = when.replace(tzinfo=timezone.utc)
-    when = when.astimezone(timezone.utc).replace(microsecond=0)
-    if when < db.now() - PAST_GRACE:
-        raise HTTPException(422, "Scheduled time is in the past")
+    if body.post_now:
+        when = db.now()
+    else:
+        try:
+            when = datetime.fromisoformat(body.scheduled_at.replace("Z", "+00:00"))
+        except ValueError:
+            raise HTTPException(422, "scheduled_at must be an ISO-8601 date-time")
+        if when.tzinfo is None:
+            when = when.replace(tzinfo=timezone.utc)
+        when = when.astimezone(timezone.utc).replace(microsecond=0)
+        if when < db.now() - PAST_GRACE:
+            raise HTTPException(422, "Scheduled time is in the past")
     ts, sched = db.now_s(), db.fmt(when)
     try:
         with db.connect() as c:
@@ -56,7 +60,9 @@ def create(body: NewPost, user: dict = Depends(current_user)):
             db.add_event(c, pid, "info", "created", f"scheduled for {sched}")
     except sqlite3.IntegrityError:
         raise HTTPException(409, "Duplicate: this exact post is already scheduled for that time")
-    log.info("post_id=%s user_id=%s scheduled for %s", pid, user["id"], sched)
+    log.info("post_id=%s user_id=%s scheduled for %s%s", pid, user["id"], sched, " (post now)" if body.post_now else "")
+    if body.post_now:
+        worker.wake.set()
     return {"id": pid, "status": "scheduled", "scheduled_at": sched}
 
 

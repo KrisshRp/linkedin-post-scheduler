@@ -71,3 +71,16 @@ def test_dev_login_disabled_in_live_mode(monkeypatch):
     config.get_settings.cache_clear()
     with client() as c:
         assert c.get("/auth/dev-login", follow_redirects=False).status_code == 404
+
+
+def test_post_now_publishes_without_waiting_for_the_poll():
+    with client() as c:
+        c.get("/auth/dev-login", follow_redirects=False)
+        r = c.post("/api/posts", json={"content": "right now", "post_now": True})
+        assert r.status_code == 201
+        import time
+        for _ in range(40):  # worker thread wakes immediately; poll is 5 s, so this proves the wake-up
+            if c.get("/api/posts").json()[0]["status"] == "published":
+                break
+            time.sleep(0.1)
+        assert c.get("/api/posts").json()[0]["status"] == "published"

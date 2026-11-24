@@ -16,6 +16,7 @@ h1 { margin:0 0 8px; font-size:24px; } h2 { margin:0 0 12px; font-size:17px; }
 textarea, input { width:100%; padding:8px; border:1px solid var(--line); border-radius:6px; font:inherit; }
 textarea { resize:vertical; }
 .row { display:flex; gap:12px; align-items:center; justify-content:space-between; margin-top:8px; flex-wrap:wrap; }
+.btns { display:flex; gap:8px; }
 .row label input { width:auto; margin-left:6px; }
 #formMsg { margin-top:8px; min-height:18px; } #formMsg.err { color:var(--failed); } #formMsg.ok { color:var(--published); }
 table { width:100%; border-collapse:collapse; }

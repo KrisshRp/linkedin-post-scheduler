@@ -40,3 +40,34 @@ Attempt 1 fails -> wait ~30 s, attempt 2 fails -> ~2.5 min, 3 -> ~12.5 min, 4 ->
 | Published post never re-posted | URN saved with `published`; claim query excludes rows with a URN; reaper skips them | `app/worker.py` |
 | Tokens never in plaintext | Fernet, key in `.env` | `app/crypto.py` |
 | Secrets never in logs | redacting log filter | `app/logs.py` |
+
+## Database (ER diagram)
+
+Full DDL: [../schema.sql](../schema.sql).
+
+```mermaid
+erDiagram
+  users ||--o| oauth_tokens : "has one"
+  users ||--o{ posts : "owns"
+  users ||--o{ post_media : "uploads"
+  posts ||--o{ post_events : "audit trail"
+  posts ||--o{ post_media : "attachments"
+  users { int id PK
+    text linkedin_sub UK }
+  oauth_tokens { int user_id PK
+    blob access_token_enc "Fernet ciphertext"
+    text expires_at }
+  posts { int id PK
+    int user_id FK
+    text status "scheduled|processing|published|failed"
+    int attempts
+    text next_attempt_at
+    text linkedin_post_urn UK
+    text content_hash "UNIQUE with user_id + scheduled_at" }
+  post_events { int id PK
+    int post_id FK
+    text event }
+  post_media { int id PK
+    int post_id FK
+    text linkedin_urn "cached after upload" }
+```

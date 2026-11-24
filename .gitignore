@@ -5,3 +5,6 @@ __pycache__/
 data/
 logs/
 .pytest_cache/
+
+# Personal interview-prep notes (not part of the deliverable)
+.doc/
